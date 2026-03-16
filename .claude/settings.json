@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(export ANDROID_HOME=\"C:/Users/xeodeo/AppData/Local/Android/Sdk\")",
+      "Bash(dir \"C:/Users/xeodeo/PhoneMic/android\")",
+      "Bash(ANDROID_HOME=\"C:/Users/xeodeo/AppData/Local/Android/Sdk\" cmd.exe /c \"gradlew.bat assembleDebug\")",
+      "Bash(where java:*)",
+      "Read(//c/Users/xeodeo/AppData/Local/Google/**)",
+      "Read(//c//**)",
+      "Bash(GRADLE=\"C:/Users/xeodeo/.gradle/wrapper/dists/gradle-9.0.0-bin/d6wjpkvcgsg3oed0qlfss3wgl/gradle-9.0.0/bin/gradle\")",
+      "Bash(\"$GRADLE\" --version)",
+      "Bash(\"C:/Users/xeodeo/.gradle/wrapper/dists/gradle-9.0.0-bin/d6wjpkvcgsg3oed0qlfss3wgl/gradle-9.0.0/bin/gradle.bat\" --version)",
+      "Bash(\"C:/Users/xeodeo/.gradle/wrapper/dists/gradle-9.0.0-bin/d6wjpkvcgsg3oed0qlfss3wgl/gradle-9.0.0/bin/gradle.bat\" wrapper:*)",
+      "Bash(cmd.exe /c \"gradlew.bat assembleDebug\")",
+      "Bash(./gradlew.bat assembleDebug)",
+      "Bash(echo \"exit $?\")",
+      "Bash(find \"C:/Program Files \\(x86\\)/Inno Setup 6\" -name \"ISCC.exe\")",
+      "Bash(python -m PyInstaller --noconfirm --onedir --windowed --icon phonemic.ico --add-data \"phonemic.ico;.\" --add-data \"phonemic.png;.\" --name PhoneMic phonemic_client.py)",
+      "Bash(\"C:\\\\Program Files \\(x86\\)\\\\Inno Setup 6\\\\ISCC.exe\" \"C:\\\\Users\\\\xeodeo\\\\PhoneMic\\\\installer\\\\phonemic_setup.iss\")"
+    ]
+  }
+}

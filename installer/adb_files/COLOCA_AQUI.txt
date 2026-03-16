@@ -1,0 +1,12 @@
+Coloca aqui los siguientes archivos de Android SDK Platform Tools:
+
+  adb.exe
+  AdbWinApi.dll
+  AdbWinUsbApi.dll
+
+Descarga el ZIP oficial de Google (no requiere instalar Android Studio):
+  https://dl.google.com/android/repository/platform-tools-latest-windows.zip
+
+Extrae el ZIP y copia los 3 archivos a esta carpeta.
+Luego ejecuta windows\build_exe.bat para generar el .exe,
+y despues ejecuta installer\phonemic_setup.iss con Inno Setup.

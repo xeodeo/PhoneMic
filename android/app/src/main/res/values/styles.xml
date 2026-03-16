@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="DarkDialog" parent="Theme.AppCompat.Dialog.Alert">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:background">#2b2d31</item>
+        <item name="android:textColor">#f2f3f5</item>
+        <item name="android:textColorPrimary">#f2f3f5</item>
+        <item name="android:textColorSecondary">#b5bac1</item>
+        <item name="colorAccent">#23a55a</item>
+        <item name="colorControlActivated">#23a55a</item>
+        <item name="buttonBarNegativeButtonStyle">@style/DarkDialog.Button</item>
+        <item name="buttonBarPositiveButtonStyle">@style/DarkDialog.Button</item>
+    </style>
+
+    <style name="DarkDialog.Button" parent="Widget.AppCompat.Button.ButtonBar.AlertDialog">
+        <item name="android:textColor">#23a55a</item>
+    </style>
+</resources>

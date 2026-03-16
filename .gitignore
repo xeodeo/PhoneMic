@@ -1,0 +1,27 @@
+# Android build artifacts
+android/app/build/
+android/.gradle/
+android/.kotlin/
+android/.idea/
+android/local.properties
+*.apk
+*.aab
+*.keystore
+
+# Windows build artifacts
+windows/dist/
+windows/build/
+windows/__pycache__/
+*.pyc
+*.spec
+
+# Installer output
+installer/Output/
+installer/VBCABLE_Driver_Pack43/
+installer/VBCABLE_Driver_Pack43.zip
+installer/platform-tools/
+
+# Misc
+.DS_Store
+Thumbs.db
+*.log

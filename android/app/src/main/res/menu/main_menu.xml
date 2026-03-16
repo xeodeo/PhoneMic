@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/menuSettings"
+        android:title="Configuración"
+        android:showAsAction="never" />
+    <item
+        android:id="@+id/menuAbout"
+        android:title="Acerca de"
+        android:showAsAction="never" />
+</menu>

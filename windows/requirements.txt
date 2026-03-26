@@ -1,2 +1,5 @@
-sounddevice==0.5.5
-numpy>=2.0
+PySide6>=6.5
+sounddevice>=0.4
+numpy>=1.24
+Pillow>=10.0
+pyinstaller>=6.0

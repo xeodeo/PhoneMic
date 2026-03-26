@@ -1,6 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 title PhoneMic - Build EXE
+cd /d "%~dp0"
 
 echo ============================================
 echo  PhoneMic - Generando EXE con PyInstaller
@@ -9,7 +10,7 @@ echo.
 
 :: ── 1. Instalar dependencias ─────────────────────────────────────────────────
 echo [1/4] Instalando dependencias Python...
-pip install pyinstaller sounddevice numpy pystray pillow --quiet
+pip install pyinstaller pyside6 sounddevice numpy --quiet
 if errorlevel 1 (
     echo ERROR: Fallo al instalar dependencias.
     pause & exit /b 1
@@ -17,56 +18,55 @@ if errorlevel 1 (
 
 :: ── 2. Limpiar builds anteriores ─────────────────────────────────────────────
 echo [2/4] Limpiando builds anteriores...
-if exist dist\PhoneMic  rmdir /s /q dist\PhoneMic
-if exist build          rmdir /s /q build
-if exist PhoneMic.spec  del /q PhoneMic.spec
+if exist "%~dp0dist\PhoneMic"  rmdir /s /q "%~dp0dist\PhoneMic"
+if exist "%~dp0build"          rmdir /s /q "%~dp0build"
+if exist "%~dp0PhoneMic.spec"  del /q "%~dp0PhoneMic.spec"
 
 :: ── 3. PyInstaller ────────────────────────────────────────────────────────────
 echo [3/4] Empaquetando con PyInstaller...
 pyinstaller --onedir --noconsole --name PhoneMic ^
-    --icon phonemic.ico ^
+    --icon "%~dp0phonemic.ico" ^
     --collect-all sounddevice ^
     --collect-all soundfile ^
     --hidden-import sounddevice ^
-    --hidden-import pystray ^
-    --hidden-import PIL ^
-    phonemic_client.py
+    --hidden-import numpy ^
+    "%~dp0main.py"
 if errorlevel 1 (
     echo ERROR: PyInstaller fallo.
     pause & exit /b 1
 )
 
-:: ── 4. Copiar adb.exe y DLLs ─────────────────────────────────────────────────
-echo [4/4] Copiando iconos y archivos ADB...
-if exist phonemic.ico  copy /Y phonemic.ico  dist\PhoneMic\ >nul
-if exist phonemic.png  copy /Y phonemic.png  dist\PhoneMic\ >nul
+:: ── 4. Copiar icono y archivos ADB ────────────────────────────────────────────
+echo [4/4] Copiando icono y archivos ADB...
+if exist "%~dp0phonemic.ico"  copy /Y "%~dp0phonemic.ico"  "%~dp0dist\PhoneMic\" >nul
+if exist "%~dp0phonemic.png"  copy /Y "%~dp0phonemic.png"  "%~dp0dist\PhoneMic\" >nul
 
 set ADB_FOUND=0
 
-:: Buscar en la carpeta adb_files local (directo)
-if exist "..\installer\adb_files\adb.exe" (
-    copy /Y "..\installer\adb_files\adb.exe"          dist\PhoneMic\ >nul
-    copy /Y "..\installer\adb_files\AdbWinApi.dll"    dist\PhoneMic\ >nul 2>nul
-    copy /Y "..\installer\adb_files\AdbWinUsbApi.dll" dist\PhoneMic\ >nul 2>nul
-    echo    Copiado desde installer\adb_files\
+:: Buscar en installer\adb_files\platform-tools (estructura normal)
+if exist "%~dp0..\installer\adb_files\platform-tools\adb.exe" (
+    copy /Y "%~dp0..\installer\adb_files\platform-tools\adb.exe"          "%~dp0dist\PhoneMic\" >nul
+    copy /Y "%~dp0..\installer\adb_files\platform-tools\AdbWinApi.dll"    "%~dp0dist\PhoneMic\" >nul 2>nul
+    copy /Y "%~dp0..\installer\adb_files\platform-tools\AdbWinUsbApi.dll" "%~dp0dist\PhoneMic\" >nul 2>nul
+    echo    Copiado desde installer\adb_files\platform-tools\
     set ADB_FOUND=1
 )
 
-:: Buscar en la subcarpeta platform-tools (cuando se extrae el ZIP completo)
-if !ADB_FOUND!==0 if exist "..\installer\adb_files\platform-tools\adb.exe" (
-    copy /Y "..\installer\adb_files\platform-tools\adb.exe"          dist\PhoneMic\ >nul
-    copy /Y "..\installer\adb_files\platform-tools\AdbWinApi.dll"    dist\PhoneMic\ >nul 2>nul
-    copy /Y "..\installer\adb_files\platform-tools\AdbWinUsbApi.dll" dist\PhoneMic\ >nul 2>nul
-    echo    Copiado desde installer\adb_files\platform-tools\
+:: Buscar directamente en installer\adb_files
+if !ADB_FOUND!==0 if exist "%~dp0..\installer\adb_files\adb.exe" (
+    copy /Y "%~dp0..\installer\adb_files\adb.exe"          "%~dp0dist\PhoneMic\" >nul
+    copy /Y "%~dp0..\installer\adb_files\AdbWinApi.dll"    "%~dp0dist\PhoneMic\" >nul 2>nul
+    copy /Y "%~dp0..\installer\adb_files\AdbWinUsbApi.dll" "%~dp0dist\PhoneMic\" >nul 2>nul
+    echo    Copiado desde installer\adb_files\
     set ADB_FOUND=1
 )
 
 :: Buscar en Android SDK (ruta tipica)
 if !ADB_FOUND!==0 if exist "%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe" (
     set PT=%LOCALAPPDATA%\Android\Sdk\platform-tools
-    copy /Y "!PT!\adb.exe"          dist\PhoneMic\ >nul
-    copy /Y "!PT!\AdbWinApi.dll"    dist\PhoneMic\ >nul 2>nul
-    copy /Y "!PT!\AdbWinUsbApi.dll" dist\PhoneMic\ >nul 2>nul
+    copy /Y "!PT!\adb.exe"          "%~dp0dist\PhoneMic\" >nul
+    copy /Y "!PT!\AdbWinApi.dll"    "%~dp0dist\PhoneMic\" >nul 2>nul
+    copy /Y "!PT!\AdbWinUsbApi.dll" "%~dp0dist\PhoneMic\" >nul 2>nul
     echo    Copiado desde Android SDK: !PT!
     set ADB_FOUND=1
 )
@@ -75,7 +75,7 @@ if !ADB_FOUND!==0 (
     echo.
     echo  ADVERTENCIA: adb.exe no encontrado automaticamente.
     echo  Coloca adb.exe, AdbWinApi.dll y AdbWinUsbApi.dll en:
-    echo    installer\adb_files\
+    echo    installer\adb_files\platform-tools\
     echo  Descargalos de: https://dl.google.com/android/repository/platform-tools-latest-windows.zip
     echo.
 )

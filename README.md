@@ -1,195 +1,171 @@
-<div align="center">
-
-<img src="windows/phonemic.png" alt="PhoneMic Logo" width="140"/>
-
 # PhoneMic
 
-**Use your Android phone as a microphone on Windows — over USB**
-
-[![Platform](https://img.shields.io/badge/platform-Windows-0078D4?logo=windows)](https://github.com/xeodeo/PhoneMic/releases)
-[![Android](https://img.shields.io/badge/Android-5.0%2B-3DDC84?logo=android&logoColor=white)](https://github.com/xeodeo/PhoneMic/releases)
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/xeodeo/PhoneMic?color=success)](https://github.com/xeodeo/PhoneMic/releases/latest)
-
-[**Download**](https://github.com/xeodeo/PhoneMic/releases/latest) · [How it works](#how-it-works) · [Quick start](#quick-start) · [FAQ](#faq)
-
-</div>
+Usa el micrófono de tu celular Android como micrófono en Windows, conectado por **cable USB** o por **WiFi** (red local).
 
 ---
 
-## What is PhoneMic?
-
-PhoneMic turns your Android phone into a high-quality USB microphone for Windows — no Wi-Fi, no latency spikes, no proprietary drivers. It streams raw PCM audio over a USB cable through ADB, then feeds it into any virtual audio device (VB-Cable, VoiceMeeter, VAC, etc.) so apps like **Discord, Zoom, OBS, Teams** see it as a regular microphone.
-
-<div align="center">
+## ¿Cómo funciona?
 
 ```
-📱 Android Phone                      💻 Windows PC
-┌─────────────────────┐               ┌──────────────────────────────────┐
-│  PhoneMic App       │               │  PhoneMic Client                 │
-│  ─────────────────  │  USB Cable    │  ──────────────────────────────  │
-│  AudioRecord API    │──────────────▶│  ADB Port Forward (tcp:7777)     │
-│  16000 Hz · PCM16   │  (ADB)        │  ↓                               │
-│  TCP Server :7777   │               │  sounddevice output stream       │
-└─────────────────────┘               │  ↓                               │
-                                      │  Virtual Audio Device (VB-Cable) │
-                                      │  ↓                               │
-                                      │  🎙️ Discord / Zoom / OBS / etc. │
-                                      └──────────────────────────────────┘
+[Celular Android]  ──USB o WiFi──▶  [Windows]  ──▶  [Dispositivo virtual]
+  Micrófono                          PhoneMic.exe       VB-Cable / VoiceMeeter
+  TCP Server :7777                   Recibe audio        Aparece como micrófono
 ```
 
-</div>
+La app Android captura audio del micrófono (PCM 16-bit) y lo transmite por TCP al cliente Windows, que lo reproduce en un dispositivo de audio virtual. Desde ahí, cualquier aplicación (Discord, Zoom, OBS, etc.) puede usarlo como micrófono.
 
 ---
 
-## Features
+## Descargas necesarias
 
-- **USB only** — stable, low-latency, no Wi-Fi dependency
-- **WiFi mode** — also supports wireless connection when USB isn't available
-- **No kernel drivers** — works with any existing virtual audio device
-- **Volume control** — adjustable on both the phone and the PC
-- **Mute button** — on the phone and in the Windows app
-- **System tray** — minimize to tray, runs in background
-- **Bundled ADB** — no need to install Android SDK separately
-- **Installer includes VB-Cable** — everything in one setup
+| Componente | URL | Para qué sirve |
+|-----------|-----|----------------|
+| **VB-Cable** | https://vb-audio.com/Cable/ | Crea un micrófono virtual en Windows (necesario para Discord, Zoom, OBS) |
+| **ADB platform-tools** | https://dl.google.com/android/repository/platform-tools-latest-windows.zip | Herramienta de conexión USB entre Android y Windows |
+| **Driver USB Android (Google)** | https://developer.android.com/studio/run/win-usb | Driver para que Windows reconozca el celular por USB |
 
----
-
-## Quick Start
-
-### Option A — Windows Installer (recommended)
-
-1. [**Download PhoneMic_Setup.exe**](https://github.com/xeodeo/PhoneMic/releases/latest) and run it
-2. It installs the Windows client, ADB, and optionally VB-Cable
-3. Follow the steps below from step 2
-
-### Option B — Manual / from source
-
-```bash
-pip install -r windows/requirements.txt
-python windows/phonemic_client.py
-```
+> **El instalador `PhoneMic_Setup.exe` ya incluye ADB y VB-Cable.** Solo necesitas descargar el driver USB si Windows no reconoce el celular.
 
 ---
 
-## Step-by-step Usage
+## Instalación rápida (recomendada)
 
-**1. Prepare your phone**
-
-- Go to **Settings → About phone** → tap *Build number* 7 times to enable Developer Options
-- Go to **Settings → Developer options** → enable **USB debugging**
-- Connect your phone to the PC with a USB cable and **allow** the ADB authorization prompt
-
-**2. Install the Android app**
-
-- Build with Android Studio (`Run → Run 'app'`), or
-- Sideload the APK from the [latest release](https://github.com/xeodeo/PhoneMic/releases/latest)
-
-**3. Start streaming on the phone**
-
-- Open **PhoneMic** on the phone
-- Tap **Start** — the status turns yellow (waiting for client)
-
-**4. Connect from Windows**
-
-- Open the PhoneMic Windows client
-- Select your virtual audio device from the dropdown (e.g. `CABLE Input (VB-Audio Virtual Cable)`)
-- Press **Connect** — the phone status turns green and audio starts flowing
-
-**5. Set the microphone in your app**
-
-- In Discord, Zoom, OBS, etc., select **CABLE Output (VB-Audio Virtual Cable)** as your microphone input
+1. Descarga y ejecuta **`PhoneMic_Setup.exe`**
+2. El instalador incluye:
+   - PhoneMic para Windows
+   - ADB (Android Debug Bridge)
+   - VB-Cable (dispositivo virtual de audio) — opcional, pero recomendado
+3. Instala la app en el celular (conectado por USB con Depuración USB activa):
+   ```
+   adb install PhoneMic.apk
+   ```
+   *(El APK queda en la carpeta de instalación: `C:\Program Files\PhoneMic\`)*
 
 ---
 
-## Audio Specs
+## Uso
 
-| Parameter   | Value                  |
-|-------------|------------------------|
-| Sample rate | 16,000 Hz              |
-| Channels    | 1 (mono)               |
-| Bit depth   | PCM 16-bit signed LE   |
-| Transport   | Raw TCP (no framing)   |
-| Port        | 7777                   |
-| Chunk size  | 4096 bytes             |
+### Conexión por USB (recomendada)
 
----
+1. Conecta el celular al PC con cable USB
+2. En el celular: **Ajustes → Opciones de desarrollador → Depuración USB** (activar)
+3. Si aparece un aviso en el celular, toca **Permitir**
+4. Abre **PhoneMic** en el celular y toca **Iniciar**
+5. Abre **PhoneMic** en Windows
+6. Selecciona el modo **USB** y el dispositivo de audio
+7. Presiona **Conectar**
 
-## Requirements
+> Si Windows no detecta el celular, instala el **Driver USB Android**: https://developer.android.com/studio/run/win-usb
 
-### Android
-- Android 5.0 (Lollipop) or later
-- USB debugging enabled
+### Conexión por WiFi
 
-### Windows
-- Windows 10 or later
-- A virtual audio device: [VB-Cable](https://vb-audio.com/Cable/) *(free)*, VoiceMeeter, or similar — the installer includes VB-Cable automatically
-- ADB — bundled with the installer. To install manually: download [Android Platform Tools](https://developer.android.com/tools/releases/platform-tools) and extract `adb.exe` anywhere (or add it to your PATH)
+1. Celular y PC deben estar en la **misma red WiFi**
+2. Abre **PhoneMic** en el celular, ve a **Configuración → WiFi** y anota la IP que aparece
+3. En Windows, selecciona modo **WiFi** e ingresa la IP
+4. Presiona **Conectar**
 
 ---
 
-## vs. WoMic
+## Dispositivo virtual de audio
 
-| | WoMic | PhoneMic |
-|---|---|---|
-| Windows driver | Custom kernel driver (`.sys`) | Any virtual audio device |
-| Protocol | Proprietary | Raw TCP PCM |
-| Source code | Closed | Open |
-| USB + WiFi | Yes | Yes |
-| Installer | Yes | Yes |
-| Customizable | No | Yes |
+Para que otras apps reconozcan el audio como micrófono se necesita un dispositivo virtual:
+
+| Dispositivo | Descarga | Cómo usarlo |
+|-------------|----------|-------------|
+| **VB-Cable** (incluido en el instalador) | https://vb-audio.com/Cable/ | Selecciona `CABLE Input` en PhoneMic Windows; en Discord/Zoom elige `CABLE Output` como micrófono |
+| **VoiceMeeter** | https://vb-audio.com/Voicemeeter/ | Selecciona la entrada de VoiceMeeter en PhoneMic |
 
 ---
 
-## Building from Source
+## Opciones de audio
 
-### Android
+| Opción | Descripción |
+|--------|-------------|
+| Calidad estándar | 16 000 Hz — menor latencia, menos ancho de banda |
+| Alta calidad | 44 100 Hz — mejor calidad, algo más de latencia |
+| Noise Gate | Silencia el audio por debajo de un umbral configurable |
+| Silenciar | Silencia el micrófono sin desconectar |
+
+---
+
+## Formato técnico
+
+| Parámetro | Valor |
+|-----------|-------|
+| Sample rate | 16 000 Hz (estándar) / 44 100 Hz (alta calidad) |
+| Canales | 1 (mono) |
+| Formato | PCM 16-bit signed little-endian |
+| Protocolo | TCP raw — cabecera `PHONEMIC:SR:CH\n` + PCM |
+| Puerto | 7777 |
+
+---
+
+## Compilar desde el código fuente
+
+### App Android
 ```bash
 cd android
-./gradlew assembleDebug       # build APK
-./gradlew installDebug        # build + install to connected device
+./gradlew assembleDebug          # genera APK en android/app/build/outputs/apk/debug/
+./gradlew installDebug           # compila e instala directamente en el celular
 ```
 
-### Windows executable
+### Cliente Windows (EXE)
 ```bash
 cd windows
-build_exe.bat                 # produces dist/PhoneMic/
+build_exe.bat                    # genera windows/dist/PhoneMic/PhoneMic.exe
 ```
 
-### Windows installer (requires [Inno Setup 6](https://jrsoftware.org/isinfo.php))
+### Instalador
+
+**Requisitos previos:**
+- **Inno Setup 6** — https://jrsoftware.org/isdl.php
+- **ADB platform-tools** — https://dl.google.com/android/repository/platform-tools-latest-windows.zip
+  *(extrae en `installer/adb_files/platform-tools/`)*
+- **VB-Cable** — https://vb-audio.com/Cable/
+  *(copia los archivos del driver en `installer/vbcable/`)*
+
+**Pasos:**
+1. Ejecuta `windows\build_exe.bat`
+2. Abre `installer\phonemic_setup.iss` en **Inno Setup 6**
+3. Compila con `Ctrl+F9` → genera `installer\Output\PhoneMic_Setup.exe`
+
+---
+
+## Estructura del proyecto
+
 ```
-Open installer/phonemic_setup.iss in Inno Setup and click Compile
-Output: installer/Output/PhoneMic_Setup.exe
+PhoneMic/
+├── android/                    App Android (Kotlin)
+│   └── app/src/main/java/com/phonemic/app/
+│       ├── MainActivity.kt     UI y control del servicio
+│       └── MicService.kt       Foreground service — captura y transmite audio
+├── windows/                    Cliente Windows (Python + PySide6)
+│   ├── main.py                 Punto de entrada
+│   ├── phonemic/
+│   │   ├── ui/
+│   │   │   ├── app.py          Ventana principal (QMainWindow)
+│   │   │   └── widgets.py      MicSphere (widget personalizado)
+│   │   ├── audio/
+│   │   │   ├── client.py       Conexión ADB/WiFi + streaming de audio
+│   │   │   └── processing.py   Volumen y noise gate
+│   │   └── constants.py        Puerto, chunk size, sample rates
+│   ├── build_exe.bat           Script de compilación con PyInstaller
+│   └── requirements.txt        Dependencias Python
+└── installer/
+    ├── phonemic_setup.iss      Script Inno Setup 6
+    ├── adb_files/              ADB platform-tools para Windows
+    └── vbcable/                Driver VB-Cable
 ```
 
 ---
 
-## FAQ
+## Requisitos
 
-**Q: The phone status stays yellow after connecting**
-A: Make sure USB debugging is enabled and the ADB authorization was accepted on the phone. Try running `adb devices` in a terminal — your device should be listed as `device`. If it says `unauthorized`, unplug and replug, then accept the prompt on the phone.
+**Android:** 6.0 (API 23) o superior
 
-> **Install ADB manually:** Download [Android Platform Tools](https://developer.android.com/tools/releases/platform-tools) → extract → add the folder to your PATH, or just drop `adb.exe` next to `phonemic_client.py`.
+**Windows:** Windows 10/11 (64-bit)
 
-**Q: No virtual audio devices appear in the dropdown**
-A: Install [VB-Cable](https://vb-audio.com/Cable/) (free) — direct download at `https://vb-audio.com/Cable/`. The PhoneMic installer includes it as an optional component.
-
-**Q: Audio is choppy or has static**
-A: Try a different USB cable or port. Also make sure no other app is capturing the ADB forward on port 7777.
-
-**Q: Can I use WiFi instead of USB?**
-A: Yes. In the phone app, go to the menu and switch to **WiFi mode**. Enter your phone's IP in the Windows client before connecting.
-
----
-
-## License
-
-MIT — see [LICENSE](LICENSE)
-
----
-
-<div align="center">
-
-Made with ♥ · [Report an issue](https://github.com/xeodeo/PhoneMic/issues)
-
-</div>
+**Para compilar el cliente Windows:**
+- Python 3.8+
+- `pip install -r windows/requirements.txt`
+- PyInstaller (incluido en `build_exe.bat`)

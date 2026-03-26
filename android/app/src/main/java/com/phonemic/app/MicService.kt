@@ -31,6 +31,7 @@ class MicService : Service() {
         const val EXTRA_IS_CONNECTED = "is_connected"   // cliente activamente conectado
         const val EXTRA_VOLUME       = "volume"
         const val EXTRA_TRANSPORT    = "transport"
+        const val EXTRA_HIGH_QUALITY = "high_quality"
 
         const val CHANNEL_ID      = "phonemic_channel"
         const val NOTIFICATION_ID = 1
@@ -43,12 +44,12 @@ class MicService : Service() {
 
     private val TAG          = "MicService"
     private val PORT         = 7777
-    private val SAMPLE_RATE  = 16000
     private val CHAN_CONFIG  = AudioFormat.CHANNEL_IN_MONO
     private val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT
 
     private val isActive = AtomicBoolean(false)
     private var transport    = "usb"   // "usb" | "wifi"
+    private var highQuality  = false
     private var serverThread: Thread? = null
     private var serverSocket: ServerSocket? = null
     private var audioRecord:  AudioRecord? = null
@@ -80,7 +81,8 @@ class MicService : Service() {
         }
 
         if (!isActive.get()) {
-            transport = intent?.getStringExtra(EXTRA_TRANSPORT) ?: "usb"
+            transport    = intent?.getStringExtra(EXTRA_TRANSPORT) ?: "usb"
+            highQuality  = intent?.getBooleanExtra(EXTRA_HIGH_QUALITY, false) ?: false
             isActive.set(true)
             isRunning   = true
             isConnected = false
@@ -156,18 +158,23 @@ class MicService : Service() {
     }
 
     private fun streamAudio(socket: Socket) {
-        val minBuf  = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHAN_CONFIG, AUDIO_FORMAT)
+        val sampleRate = if (highQuality) 44100 else 16000
+        val minBuf  = AudioRecord.getMinBufferSize(sampleRate, CHAN_CONFIG, AUDIO_FORMAT)
         val bufSize = maxOf(minBuf, 4096)
 
         audioRecord = AudioRecord(
             MediaRecorder.AudioSource.MIC,
-            SAMPLE_RATE, CHAN_CONFIG, AUDIO_FORMAT, bufSize
+            sampleRate, CHAN_CONFIG, AUDIO_FORMAT, bufSize
         )
         audioRecord!!.startRecording()
 
         val buffer = ByteArray(bufSize)
         socket.use { sock ->
             val out = sock.getOutputStream()
+            // Send format header so Windows client knows the sample rate
+            val header = "PHONEMIC:${sampleRate}:1\n".toByteArray(Charsets.US_ASCII)
+            out.write(header)
+            out.flush()
             while (isActive.get() && !sock.isClosed) {
                 val read = audioRecord?.read(buffer, 0, bufSize) ?: -1
                 if (read > 0) {

@@ -33,8 +33,9 @@ class MainActivity : AppCompatActivity() {
     private val COLOR_MUTED   = "#f23f43"
     private val COLOR_BLURPLE = "#5865f2"
 
-    private val PREFS_NAME      = "phonemic"
-    private val PREF_TRANSPORT  = "transport"
+    private val PREFS_NAME        = "phonemic"
+    private val PREF_TRANSPORT    = "transport"
+    private val PREF_HIGH_QUALITY = "high_quality"
 
     private lateinit var btnToggle:  Button
     private lateinit var btnMute:    Button
@@ -145,6 +146,22 @@ class MainActivity : AppCompatActivity() {
             @Suppress("UnspecifiedRegisterReceiverFlag")
             registerReceiver(statusReceiver, filter)
         }
+        // Sincronizar UI con el estado real del servicio al volver a la pantalla
+        syncUI(MicService.isRunning, MicService.isMuted)
+        val color = when {
+            !MicService.isRunning  -> COLOR_IDLE
+            MicService.isMuted     -> COLOR_MUTED
+            MicService.isConnected -> COLOR_ACTIVE
+            else                   -> COLOR_WAITING
+        }
+        setCircleColor(color)
+        tvStatus.text = when {
+            !MicService.isRunning  -> "Detenido"
+            MicService.isConnected -> if (MicService.isMuted) "Silenciado" else "Transmitiendo audio"
+            else                   -> "Esperando conexión..."
+        }
+        tvStatus.setTextColor(Color.parseColor(color))
+        if (MicService.isRunning) seekVolume.progress = (MicService.volumeLevel * 100).toInt()
     }
 
     override fun onPause() {
@@ -184,6 +201,10 @@ class MainActivity : AppCompatActivity() {
         getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
             .getString(PREF_TRANSPORT, "usb") ?: "usb"
 
+    private fun getHighQuality(): Boolean =
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+            .getBoolean(PREF_HIGH_QUALITY, false)
+
     private fun startStreaming() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED
@@ -194,6 +215,7 @@ class MainActivity : AppCompatActivity() {
         }
         val intent = Intent(this, MicService::class.java).apply {
             putExtra(MicService.EXTRA_TRANSPORT, getTransport())
+            putExtra(MicService.EXTRA_HIGH_QUALITY, getHighQuality())
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(intent)
@@ -229,12 +251,13 @@ class MainActivity : AppCompatActivity() {
     private fun syncUI(streaming: Boolean, muted: Boolean) {
         btnToggle.text = if (streaming) "Detener" else "Iniciar"
         btnToggle.backgroundTintList = ColorStateList.valueOf(
-            Color.parseColor(if (streaming) COLOR_MUTED else COLOR_BLURPLE)
+            Color.parseColor(if (streaming) "#fa5252" else COLOR_BLURPLE)
         )
         btnMute.isEnabled = streaming
-        btnMute.text = if (muted) "Activar micrófono" else "Silenciar micrófono"
+        btnMute.alpha = if (streaming) 1f else 0.5f
+        btnMute.text = if (muted) "🔇  Activar micrófono" else "🎤  Silenciar micrófono"
         btnMute.backgroundTintList = ColorStateList.valueOf(
-            Color.parseColor(if (muted) COLOR_MUTED else COLOR_IDLE)
+            Color.parseColor(if (muted) "#fa5252" else "#5865f2")
         )
         seekVolume.isEnabled = streaming
     }
@@ -266,18 +289,67 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showSettingsDialog() {
-        val prefs   = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-        val current = prefs.getString(PREF_TRANSPORT, "usb") ?: "usb"
-        val options = arrayOf("🔌  USB (ADB) — conecta por cable", "📶  WiFi (red local) — sin cable")
-        val checked = if (current == "usb") 0 else 1
+        val prefs       = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        val current     = prefs.getString(PREF_TRANSPORT, "usb") ?: "usb"
+        val currentHQ   = prefs.getBoolean(PREF_HIGH_QUALITY, false)
+        val transportOptions = arrayOf("🔌  USB (ADB) — conecta por cable", "📶  WiFi (red local) — sin cable")
+        val transportChecked = if (current == "usb") 0 else 1
+
+        // Build a custom view with transport radio + high quality checkbox
+        val dialogView = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48, 16, 48, 8)
+        }
+
+        val tvTransport = android.widget.TextView(this).apply {
+            text = "Modo de conexión"
+            setTextColor(android.graphics.Color.parseColor("#b5bac1"))
+            textSize = 13f
+            setPadding(0, 16, 0, 8)
+        }
+        dialogView.addView(tvTransport)
+
+        val rgTransport = android.widget.RadioGroup(this).apply {
+            orientation = android.widget.RadioGroup.VERTICAL
+        }
+        transportOptions.forEachIndexed { i, label ->
+            val rb = android.widget.RadioButton(this).apply {
+                text = label
+                id = i
+                isChecked = (i == transportChecked)
+                setTextColor(android.graphics.Color.parseColor("#f2f3f5"))
+            }
+            rgTransport.addView(rb)
+        }
+        dialogView.addView(rgTransport)
+
+        val divider = android.view.View(this).apply {
+            setBackgroundColor(android.graphics.Color.parseColor("#3a3d47"))
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT, 1
+            ).also { it.setMargins(0, 16, 0, 16) }
+        }
+        dialogView.addView(divider)
+
+        val cbHighQuality = android.widget.CheckBox(this).apply {
+            text = "Alta calidad (44 100 Hz)"
+            isChecked = currentHQ
+            setTextColor(android.graphics.Color.parseColor("#f2f3f5"))
+        }
+        dialogView.addView(cbHighQuality)
 
         AlertDialog.Builder(this, R.style.DarkDialog)
             .setTitle("Configuración")
-            .setSingleChoiceItems(options, checked) { dialog, which ->
-                val transport = if (which == 0) "usb" else "wifi"
-                prefs.edit().putString(PREF_TRANSPORT, transport).apply()
+            .setView(dialogView)
+            .setPositiveButton("Guardar") { _, _ ->
+                val selectedId = rgTransport.checkedRadioButtonId
+                val transport = if (selectedId == 0) "usb" else "wifi"
+                val hq = cbHighQuality.isChecked
+                prefs.edit()
+                    .putString(PREF_TRANSPORT, transport)
+                    .putBoolean(PREF_HIGH_QUALITY, hq)
+                    .apply()
                 updateTransportCard(transport)
-                dialog.dismiss()
                 if (MicService.isRunning) {
                     stopMicService()
                     btnToggle.postDelayed({ startStreaming() }, 400)

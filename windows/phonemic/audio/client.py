@@ -52,20 +52,22 @@ class PhoneMicClient:
     # ── ADB ──────────────────────────────────────────────────────────────────
 
     def _adb_devices(self, timeout: int = 5):
-        """Returns (authorized_lines, unauthorized_lines) from 'adb devices'."""
+        """Returns (authorized_lines, unauthorized_lines, offline_lines) from 'adb devices'."""
         r = subprocess.run(
             [ADB, "devices"], capture_output=True, text=True,
             timeout=timeout, creationflags=_CFLAGS,
         )
-        auth, unauth = [], []
+        auth, unauth, offline = [], [], []
         for line in r.stdout.splitlines():
             if "\t" not in line:
                 continue
             if "unauthorized" in line:
                 unauth.append(line)
-            elif "offline" not in line:
+            elif "offline" in line:
+                offline.append(line)
+            else:
                 auth.append(line)
-        return auth, unauth
+        return auth, unauth, offline
 
     def _restart_adb_server(self) -> None:
         """Kill and restart the ADB server to force re-auth on the phone."""
@@ -79,15 +81,29 @@ class PhoneMicClient:
                 pass
 
     def setup_adb_forward(self) -> tuple:
+        import time
         try:
-            auth, unauth = self._adb_devices()
+            # Always ensure daemon is running before checking devices
+            subprocess.run(
+                [ADB, "start-server"], capture_output=True,
+                timeout=8, creationflags=_CFLAGS,
+            )
+            time.sleep(0.5)
+
+            auth, unauth, offline = self._adb_devices()
+
+            # Device offline (was connected before, ADB daemon stale) → restart server
+            if offline and not auth:
+                self._restart_adb_server()
+                time.sleep(1.5)
+                auth, unauth, offline = self._adb_devices()
 
             # Device present but not yet authorized → restart ADB server so the
             # phone shows the "Allow USB debugging?" dialog again.
             if unauth and not auth:
                 self._restart_adb_server()
-                import time; time.sleep(1.5)
-                auth, unauth = self._adb_devices()
+                time.sleep(1.5)
+                auth, unauth, offline = self._adb_devices()
                 if not auth:
                     return False, (
                         "El celular está conectado pero no autorizado.\n\n"

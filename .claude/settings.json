@@ -42,7 +42,8 @@
       "Bash(\"C:/Program Files \\(x86\\)/Inno Setup 6/ISCC.exe\" \"C:/Users/xeodeo/PhoneMic/installer/phonemic_setup.iss\")",
       "Bash(\"C:/Users/xeodeo/PhoneMic/installer/adb_files/platform-tools/adb.exe\" install:*)",
       "Bash(grep -E \"adb|ico|png|exe$\")",
-      "Bash(where ISCC)"
+      "Bash(where ISCC)",
+      "Bash(pyinstaller -y --onedir --noconsole --name PhoneMic --icon 'C:\\\\Users\\\\xeodeo\\\\PhoneMic\\\\windows\\\\phonemic.ico' --add-data 'C:\\\\Users\\\\xeodeo\\\\PhoneMic\\\\windows\\\\phonemic.ico;.' --add-data 'C:\\\\Users\\\\xeodeo\\\\PhoneMic\\\\windows\\\\phonemic.png;.' --collect-all sounddevice --collect-all soundfile --hidden-import sounddevice --hidden-import pyside6 --hidden-import numpy main.py)"
     ]
   }
 }

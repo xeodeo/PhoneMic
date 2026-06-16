@@ -604,8 +604,10 @@ class App(QMainWindow):
             self._wifi_widget.hide()
 
     def _on_ng_toggle(self, state: int):
-        self._slider_ng.setEnabled(bool(state))
-        self._lbl_ng_pct.setEnabled(bool(state))
+        enabled = bool(state)
+        self._slider_ng.setEnabled(enabled)
+        self._lbl_ng_pct.setEnabled(enabled)
+        self._client.noise_gate_enabled = enabled
 
     def _on_ng_threshold(self, val: int):
         self._lbl_ng_pct.setText(f"{val}%")

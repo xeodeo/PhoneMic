@@ -381,9 +381,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showAboutDialog() {
-        AlertDialog.Builder(this)
+        AlertDialog.Builder(this, R.style.DarkDialog)
             .setTitle("PhoneMic")
-            .setMessage("Versión 1.0\n\nUsa tu celular como micrófono vía USB (ADB) o WiFi (red local).\n\nPuerto: 7777")
+            .setMessage("Versión 1.2\n\nUsa tu celular como micrófono vía USB (ADB) o WiFi (red local).\n\nPuerto: 7777\n\nDescargas y actualizaciones:\ngithub.com/xeodeo/PhoneMic/releases")
             .setPositiveButton("OK", null)
             .show()
     }

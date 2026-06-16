@@ -80,20 +80,37 @@ class PhoneMicClient:
             except Exception:
                 pass
 
-    def setup_adb_forward(self) -> tuple:
+    def setup_adb_forward(self, status_cb: Optional[Callable] = None) -> tuple:
         import time
+
+        def sc(msg: str) -> None:
+            if status_cb:
+                status_cb(msg)
+
         try:
-            # Always ensure daemon is running before checking devices
-            subprocess.run(
-                [ADB, "start-server"], capture_output=True,
-                timeout=8, creationflags=_CFLAGS,
+            # Check if daemon is already running (fast path)
+            sc("Verificando servidor ADB...")
+            r = subprocess.run(
+                [ADB, "devices"], capture_output=True, text=True,
+                timeout=3, creationflags=_CFLAGS,
             )
-            time.sleep(0.5)
+            daemon_was_off = "daemon not running" in r.stdout or "daemon not running" in r.stderr
+
+            if daemon_was_off:
+                sc("Iniciando servidor ADB...")
+                subprocess.run(
+                    [ADB, "start-server"], capture_output=True,
+                    timeout=10, creationflags=_CFLAGS,
+                )
+                time.sleep(1.5)
+            else:
+                time.sleep(0.3)
 
             auth, unauth, offline = self._adb_devices()
 
             # Device offline (was connected before, ADB daemon stale) → restart server
             if offline and not auth:
+                sc("Reiniciando servidor ADB...")
                 self._restart_adb_server()
                 time.sleep(1.5)
                 auth, unauth, offline = self._adb_devices()
@@ -101,6 +118,7 @@ class PhoneMicClient:
             # Device present but not yet authorized → restart ADB server so the
             # phone shows the "Allow USB debugging?" dialog again.
             if unauth and not auth:
+                sc("Esperando autorización en el celular...")
                 self._restart_adb_server()
                 time.sleep(1.5)
                 auth, unauth, offline = self._adb_devices()
@@ -179,8 +197,7 @@ class PhoneMicClient:
                 status_callback(msg)
 
         if self.connection_mode == "usb":
-            cb("Configurando ADB...")
-            ok, adb_msg = self.setup_adb_forward()
+            ok, adb_msg = self.setup_adb_forward(status_cb=cb)
             if not ok:
                 return False, adb_msg
             host = "127.0.0.1"
@@ -192,7 +209,13 @@ class PhoneMicClient:
         cb("Conectando al celular...")
         try:
             sock = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
-            sock.settimeout(5)
+            # TCP_NODELAY reduces latency for both USB and WiFi
+            sock.setsockopt(_socket.IPPROTO_TCP, _socket.TCP_NODELAY, 1)
+            # Larger receive buffer for WiFi to absorb jitter
+            if self.connection_mode == "wifi":
+                sock.setsockopt(_socket.SOL_SOCKET, _socket.SO_RCVBUF, 131072)
+            connect_timeout = 10 if self.connection_mode == "wifi" else 5
+            sock.settimeout(connect_timeout)
             sock.connect((host, PORT))
             sock.settimeout(None)
             self.sock = sock
@@ -202,7 +225,7 @@ class PhoneMicClient:
                 "¿Abriste PhoneMic en el celular y presionaste Iniciar?"
             )
         except _socket.timeout:
-            return False, "Timeout al conectar. Verifica que PhoneMic esté activo."
+            return False, "Timeout al conectar. Verifica que PhoneMic esté activo en la misma red."
         except Exception as e:
             return False, f"Error de conexión: {e}"
 
@@ -268,8 +291,8 @@ class PhoneMicClient:
     # ── Jitter buffer (simple - para WiFi) ───────────────────────────────────
 
     def _get_jitter_prefill(self) -> int:
-        """Number of chunks to buffer before playback (WiFi=4, USB=0)."""
-        return 4 if self.connection_mode == "wifi" else 0
+        """Number of chunks to buffer before playback (WiFi=8, USB=0)."""
+        return 8 if self.connection_mode == "wifi" else 0
 
     # ── Receive loop ─────────────────────────────────────────────────────────
 
@@ -340,5 +363,15 @@ class PhoneMicClient:
         if self.connection_mode == "usb":
             self.remove_adb_forward()
 
+    def kill_adb_server(self) -> None:
+        try:
+            subprocess.run(
+                [ADB, "kill-server"], capture_output=True,
+                timeout=5, creationflags=_CFLAGS,
+            )
+        except Exception:
+            pass
+
     def cleanup(self) -> None:
         self.stop()
+        self.kill_adb_server()

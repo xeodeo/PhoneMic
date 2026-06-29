@@ -26,9 +26,11 @@ pyinstaller -y --onedir --noconsole --name PhoneMic ^
     --icon "%~dp0windows\phonemic.ico" ^
     --add-data "%~dp0windows\phonemic.ico;." ^
     --add-data "%~dp0windows\phonemic.png;." ^
-    --collect-all PySide6 ^
     --collect-all sounddevice ^
     --collect-all soundfile ^
+    --hidden-import PySide6.QtWidgets ^
+    --hidden-import PySide6.QtCore ^
+    --hidden-import PySide6.QtGui ^
     --hidden-import numpy ^
     "%~dp0windows\main.py"
 if errorlevel 1 (

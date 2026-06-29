@@ -140,6 +140,9 @@ cls
 echo.
 echo  [Instalar dependencias Python]
 echo.
+echo  Eliminando PySide6-Addons si esta instalado (reduce tamano del EXE ~50%%)...
+pip uninstall PySide6 PySide6-Addons -y >nul 2>&1
+echo  Instalando dependencias...
 pip install -r "%~dp0windows\requirements.txt"
 if errorlevel 1 (
     echo.
@@ -175,9 +178,11 @@ pyinstaller -y --onedir --noconsole --name PhoneMic ^
     --icon "%~dp0windows\phonemic.ico" ^
     --add-data "%~dp0windows\phonemic.ico;." ^
     --add-data "%~dp0windows\phonemic.png;." ^
-    --collect-all PySide6 ^
     --collect-all sounddevice ^
     --collect-all soundfile ^
+    --hidden-import PySide6.QtWidgets ^
+    --hidden-import PySide6.QtCore ^
+    --hidden-import PySide6.QtGui ^
     --hidden-import numpy ^
     "%~dp0windows\main.py"
 if errorlevel 1 (

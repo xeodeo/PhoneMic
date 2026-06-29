@@ -30,7 +30,7 @@ import java.net.URL
 
 class MainActivity : AppCompatActivity() {
 
-    private val CURRENT_VERSION = "1.2"
+    private val CURRENT_VERSION = "1.3"
 
     private val COLOR_IDLE    = "#4f545c"
     private val COLOR_WAITING = "#f0a500"   // amarillo — servidor activo, sin cliente
@@ -422,7 +422,7 @@ class MainActivity : AppCompatActivity() {
     private fun showAboutDialog() {
         AlertDialog.Builder(this, R.style.DarkDialog)
             .setTitle("PhoneMic")
-            .setMessage("Versión 1.2\n\nUsa tu celular como micrófono vía USB (ADB) o WiFi (red local).\n\nPuerto: 7777\n\nDescargas y actualizaciones:\ngithub.com/xeodeo/PhoneMic/releases")
+            .setMessage("Versión 1.3\n\nUsa tu celular como micrófono vía USB (ADB) o WiFi (red local).\n\nPuerto: 7777\n\nDescargas y actualizaciones:\ngithub.com/xeodeo/PhoneMic/releases")
             .setPositiveButton("OK", null)
             .show()
     }

@@ -26,10 +26,9 @@ pyinstaller -y --onedir --noconsole --name PhoneMic ^
     --icon "%~dp0windows\phonemic.ico" ^
     --add-data "%~dp0windows\phonemic.ico;." ^
     --add-data "%~dp0windows\phonemic.png;." ^
+    --collect-all PySide6 ^
     --collect-all sounddevice ^
     --collect-all soundfile ^
-    --hidden-import sounddevice ^
-    --hidden-import pyside6 ^
     --hidden-import numpy ^
     "%~dp0windows\main.py"
 if errorlevel 1 (
@@ -50,11 +49,18 @@ echo.
 :: ── 4. Instalador ─────────────────────────────────
 echo [4/4] Compilando instalador con Inno Setup...
 cd /d "%~dp0"
-if not exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" (
-    echo ERROR: Inno Setup 6 no encontrado en C:\Program Files ^(x86^)\Inno Setup 6\
+
+:: Detectar Inno Setup 6 en ubicaciones comunes
+set ISCC=
+if exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" set "ISCC=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+if not defined ISCC if exist "C:\Program Files\Inno Setup 6\ISCC.exe" set "ISCC=C:\Program Files\Inno Setup 6\ISCC.exe"
+if not defined ISCC where ISCC.exe >nul 2>&1 && set "ISCC=ISCC.exe"
+if not defined ISCC (
+    echo ERROR: Inno Setup 6 no encontrado.
+    echo Descargalo desde https://jrsoftware.org/isdl.php
     pause & exit /b 1
 )
-"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "%~dp0installer\phonemic_setup.iss"
+"%ISCC%" "%~dp0installer\phonemic_setup.iss"
 if errorlevel 1 (
     echo ERROR: Fallo al compilar instalador.
     pause & exit /b 1

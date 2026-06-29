@@ -22,10 +22,15 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import android.net.Uri
 import java.net.Inet4Address
+import java.net.HttpURLConnection
 import java.net.NetworkInterface
+import java.net.URL
 
 class MainActivity : AppCompatActivity() {
+
+    private val CURRENT_VERSION = "1.2"
 
     private val COLOR_IDLE    = "#4f545c"
     private val COLOR_WAITING = "#f0a500"   // amarillo — servidor activo, sin cliente
@@ -135,6 +140,7 @@ class MainActivity : AppCompatActivity() {
         if (MicService.isRunning) seekVolume.progress = (MicService.volumeLevel * 100).toInt()
 
         checkPermissions()
+        checkForUpdates()
     }
 
     override fun onResume() {
@@ -378,6 +384,39 @@ class MainActivity : AppCompatActivity() {
             }
         } catch (_: Exception) {}
         return "Sin conexión WiFi"
+    }
+
+    private fun checkForUpdates() {
+        Thread {
+            try {
+                val conn = URL(
+                    "https://api.github.com/repos/xeodeo/PhoneMic/releases/latest"
+                ).openConnection() as HttpURLConnection
+                conn.setRequestProperty("User-Agent", "PhoneMic")
+                conn.connectTimeout = 5000
+                conn.readTimeout    = 5000
+                val body = conn.inputStream.bufferedReader().readText()
+                val tag     = Regex(""""tag_name"\s*:\s*"([^"]+)"""").find(body)
+                                 ?.groupValues?.get(1) ?: return@Thread
+                val latest  = tag.trimStart('v')
+                val htmlUrl = Regex(""""html_url"\s*:\s*"([^"]+)"""").find(body)
+                                 ?.groupValues?.get(1) ?: ""
+                if (latest != CURRENT_VERSION) {
+                    runOnUiThread { showUpdateDialog(tag, htmlUrl) }
+                }
+            } catch (_: Exception) {}
+        }.start()
+    }
+
+    private fun showUpdateDialog(version: String, url: String) {
+        AlertDialog.Builder(this, R.style.DarkDialog)
+            .setTitle("Actualización disponible")
+            .setMessage("Nueva versión: $version\nVersión actual: $CURRENT_VERSION\n\nPuedes descargarla desde GitHub Releases.")
+            .setPositiveButton("Descargar") { _, _ ->
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            }
+            .setNegativeButton("Ahora no", null)
+            .show()
     }
 
     private fun showAboutDialog() {

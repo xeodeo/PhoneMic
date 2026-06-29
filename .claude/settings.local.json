@@ -93,7 +93,8 @@
       "Bash(cp phonemic.png dist/PhoneMic/)",
       "Bash(cp \"../installer/adb_files/platform-tools/adb.exe\" dist/PhoneMic/)",
       "Bash(cp \"../installer/adb_files/platform-tools/AdbWinApi.dll\" dist/PhoneMic/)",
-      "Bash(cp \"../installer/adb_files/platform-tools/AdbWinUsbApi.dll\" dist/PhoneMic/)"
+      "Bash(cp \"../installer/adb_files/platform-tools/AdbWinUsbApi.dll\" dist/PhoneMic/)",
+      "WebFetch(domain:jrsoftware.org)"
     ]
   }
 }

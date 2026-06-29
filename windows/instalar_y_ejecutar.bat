@@ -36,10 +36,18 @@ if errorlevel 1 (
     echo  1. Instala Android SDK Platform Tools
     echo  2. Copia adb.exe en esta carpeta: %~dp0
     echo.
-    echo El programa intentara buscar adb en la carpeta de WoMic...
-    if exist "C:\Program Files (x86)\WOMic\adb.exe" (
+    echo Buscando adb en ubicaciones conocidas...
+    if exist "%~dp0adb.exe" (
+        set PATH=%PATH%;%~dp0
+        echo [OK] Usando adb local (junto al script)
+    ) else if exist "C:\Program Files (x86)\WOMic\adb.exe" (
         set PATH=%PATH%;C:\Program Files (x86)\WOMic
         echo [OK] Usando adb de WoMic
+    ) else if exist "%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe" (
+        set PATH=%PATH%;%LOCALAPPDATA%\Android\Sdk\platform-tools
+        echo [OK] Usando adb de Android SDK
+    ) else (
+        echo [WARN] adb.exe no encontrado. Copia adb.exe en: %~dp0
     )
 )
 

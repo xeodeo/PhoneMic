@@ -12,6 +12,7 @@ import struct
 import subprocess
 import sys
 import threading
+import time
 from typing import Optional
 import tkinter as tk
 from tkinter import ttk, messagebox
@@ -38,6 +39,7 @@ PORT        = 7777
 SAMPLE_RATE = 16000
 CHANNELS    = 1
 CHUNK       = 4096
+APP_VERSION = "1.2"
 
 # ── Discord color palette ────────────────────────────────────────────────────
 BG_DARK    = "#1e1f22"
@@ -76,12 +78,45 @@ class PhoneMicClient:
     def setup_adb_forward(self):
         try:
             _cflags = 0x08000000 if sys.platform == "win32" else 0  # CREATE_NO_WINDOW
+
+            def _parse_devices(stdout):
+                authorized, unauthorized, offline = [], [], []
+                for ln in stdout.splitlines():
+                    if "\t" not in ln:
+                        continue
+                    if "offline" in ln:
+                        offline.append(ln)
+                    elif "unauthorized" in ln:
+                        unauthorized.append(ln)
+                    else:
+                        authorized.append(ln)
+                return authorized, unauthorized, offline
+
             check = subprocess.run(
                 [ADB, "devices"], capture_output=True, text=True,
                 timeout=5, creationflags=_cflags,
             )
-            lines = [l for l in check.stdout.splitlines() if "\t" in l]
-            if not lines:
+            authorized, unauthorized, offline = _parse_devices(check.stdout)
+
+            # Dispositivo offline (estado stale del daemon): reiniciar ADB y re-intentar
+            if offline and not authorized:
+                subprocess.run([ADB, "kill-server"], capture_output=True, timeout=5, creationflags=_cflags)
+                subprocess.run([ADB, "start-server"], capture_output=True, timeout=8, creationflags=_cflags)
+                time.sleep(2.5)
+                check2 = subprocess.run(
+                    [ADB, "devices"], capture_output=True, text=True,
+                    timeout=5, creationflags=_cflags,
+                )
+                authorized, unauthorized, offline = _parse_devices(check2.stdout)
+
+            if not authorized:
+                if unauthorized:
+                    return False, (
+                        "El teléfono necesita autorización.\n\n"
+                        "Mira la pantalla del celular y toca «Permitir» en el aviso\n"
+                        "de «¿Permitir la depuración USB?»\n\n"
+                        "Si no aparece el aviso, desconecta y vuelve a conectar el cable."
+                    )
                 return False, (
                     "No se detectó ningún celular por USB.\n\n"
                     "Revisa lo siguiente:\n"
@@ -89,6 +124,7 @@ class PhoneMicClient:
                     "• En el celular: Ajustes → Opciones de desarrollador → Depuración USB (activar)\n"
                     "• Si aparece un aviso en el celular, toca «Permitir»"
                 )
+
             result = subprocess.run(
                 [ADB, "forward", f"tcp:{PORT}", f"tcp:{PORT}"],
                 capture_output=True, text=True, timeout=5, creationflags=_cflags,
@@ -904,6 +940,59 @@ class App:
         y = self.root.winfo_y() + (self.root.winfo_height() - win.winfo_height()) // 2
         win.geometry(f"+{x}+{y}")
 
+    def _show_update_popup(self, version: str, url: str):
+        import webbrowser
+        win = tk.Toplevel(self.root)
+        win.title("Actualización disponible")
+        win.configure(bg=BG_PANEL)
+        win.resizable(False, False)
+        win.transient(self.root)
+        try:
+            ico = self._icon_path("ico")
+            if os.path.exists(ico):
+                win.iconbitmap(ico)
+        except Exception:
+            pass
+        try:
+            user32 = ctypes.windll.user32   # type: ignore[attr-defined]
+            dwmapi = ctypes.windll.dwmapi   # type: ignore[attr-defined]
+            win.update_idletasks()
+            hwnd = user32.GetAncestor(win.winfo_id(), 2)
+            val1 = ctypes.c_int(1); sz = ctypes.sizeof(ctypes.c_int)
+            dwmapi.DwmSetWindowAttribute(hwnd, 19, ctypes.byref(val1), sz)
+            dwmapi.DwmSetWindowAttribute(hwnd, 20, ctypes.byref(val1), sz)
+        except Exception:
+            pass
+        tk.Label(
+            win, text="Nueva versión disponible",
+            font=("Segoe UI", 12, "bold"), fg=CLR_TEXT, bg=BG_PANEL,
+            padx=20, pady=12,
+        ).pack()
+        tk.Label(
+            win, text=f"Versión {version} ya está disponible.\nTu versión: {APP_VERSION}",
+            font=("Segoe UI", 10), fg=CLR_SUB, bg=BG_PANEL,
+            wraplength=300, justify="center", padx=20, pady=4,
+        ).pack()
+        btn_frame = tk.Frame(win, bg=BG_PANEL)
+        btn_frame.pack(pady=(8, 16))
+        tk.Button(
+            btn_frame, text="Descargar",
+            command=lambda: (webbrowser.open(url), win.destroy()),
+            font=("Segoe UI", 10, "bold"), bg=CLR_BLUE, fg="#ffffff",
+            activebackground=CLR_BLUE, activeforeground="#ffffff",
+            relief="flat", cursor="hand2", width=12, bd=0,
+        ).pack(side="left", padx=6)
+        tk.Button(
+            btn_frame, text="Ahora no", command=win.destroy,
+            font=("Segoe UI", 10), bg=BG_PANEL, fg=CLR_MUTED,
+            activebackground=BG_PANEL, activeforeground=CLR_MUTED,
+            relief="flat", cursor="hand2", width=10, bd=0,
+        ).pack(side="left", padx=6)
+        win.update_idletasks()
+        x = self.root.winfo_x() + (self.root.winfo_width()  - win.winfo_width())  // 2
+        y = self.root.winfo_y() + (self.root.winfo_height() - win.winfo_height()) // 2
+        win.geometry(f"+{x}+{y}")
+
     def _connect(self):
         if self._connecting:
             return
@@ -1142,6 +1231,25 @@ def _acquire_single_instance_lock():
         return None
 
 
+def _check_for_updates(root, show_cb):
+    import urllib.request, json
+    def _fetch():
+        try:
+            req = urllib.request.Request(
+                "https://api.github.com/repos/xeodeo/PhoneMic/releases/latest",
+                headers={"User-Agent": "PhoneMic"},
+            )
+            with urllib.request.urlopen(req, timeout=5) as r:
+                data = json.loads(r.read())
+            latest   = data.get("tag_name", "").lstrip("v")
+            html_url = data.get("html_url", "")
+            if latest and latest != APP_VERSION:
+                root.after(0, lambda: show_cb(latest, html_url))
+        except Exception:
+            pass
+    threading.Thread(target=_fetch, daemon=True).start()
+
+
 if __name__ == "__main__":
     import multiprocessing
     multiprocessing.freeze_support()
@@ -1160,4 +1268,5 @@ if __name__ == "__main__":
     app = App(root)
     app._setup_tray()
     root.protocol("WM_DELETE_WINDOW", app.on_close)
+    root.after(3000, lambda: _check_for_updates(root, app._show_update_popup))
     root.mainloop()

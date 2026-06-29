@@ -9,7 +9,7 @@
 ;   5. El instalador queda en installer\Output\PhoneMic_Setup.exe
 
 #define AppName      "PhoneMic"
-#define AppVersion   "1.0"
+#define AppVersion   "1.2"
 #define AppPublisher "PhoneMic"
 #define AppExe       "PhoneMic.exe"
 #define DistDir      "..\windows\dist\PhoneMic"
@@ -83,9 +83,27 @@ Type: filesandordirs; Name: "{app}"
 [Code]
 
 var
-  VBCableYaExistia: Boolean;  // true si VB-Cable estaba instalado ANTES de esta instalacion
+  VBCableYaExistia: Boolean;
 
-// Detecta si VB-Cable ya esta instalado buscando el dispositivo en el registro
+// Compara dos strings de version "X.Y.Z". Devuelve -1, 0, o 1.
+function CompareVersions(V1, V2: String): Integer;
+var
+  P, N1, N2: Integer;
+begin
+  Result := 0;
+  while (Result = 0) and ((V1 <> '') or (V2 <> '')) do
+  begin
+    P := Pos('.', V1);
+    if P > 0 then begin N1 := StrToIntDef(Copy(V1, 1, P-1), 0); V1 := Copy(V1, P+1, MaxInt); end
+    else begin N1 := StrToIntDef(V1, 0); V1 := ''; end;
+    P := Pos('.', V2);
+    if P > 0 then begin N2 := StrToIntDef(Copy(V2, 1, P-1), 0); V2 := Copy(V2, P+1, MaxInt); end
+    else begin N2 := StrToIntDef(V2, 0); V2 := ''; end;
+    if N1 < N2 then Result := -1
+    else if N1 > N2 then Result := 1;
+  end;
+end;
+
 function IsVBCableInstalled(): Boolean;
 var
   SubKey: string;
@@ -96,14 +114,53 @@ begin
 end;
 
 function InitializeSetup(): Boolean;
+var
+  InstalledVer: String;
+  Cmp: Integer;
+  RegKey: String;
 begin
   VBCableYaExistia := IsVBCableInstalled();
-  Result := True;
+
+  RegKey := 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\' +
+            '{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}_is1';
+
+  if RegQueryStringValue(HKLM, RegKey, 'DisplayVersion', InstalledVer) then
+  begin
+    Cmp := CompareVersions(InstalledVer, '{#AppVersion}');
+
+    if Cmp = 0 then
+    begin
+      // Misma version instalada
+      Result := MsgBox(
+        'PhoneMic ' + InstalledVer + ' ya esta instalado.' + #13#10 + #13#10 +
+        '¿Deseas reinstalar la misma version?',
+        mbConfirmation, MB_YESNO) = IDYES;
+    end
+    else if Cmp > 0 then
+    begin
+      // Version instalada es mas nueva (downgrade)
+      Result := MsgBox(
+        'Tienes una version mas nueva instalada (' + InstalledVer + ').' + #13#10 +
+        'Este instalador contiene la version {#AppVersion}.' + #13#10 + #13#10 +
+        '¿Deseas instalar la version anterior de todas formas?',
+        mbConfirmation, MB_YESNO) = IDYES;
+    end
+    else
+    begin
+      // Actualizacion disponible
+      Result := MsgBox(
+        'PhoneMic ' + InstalledVer + ' esta instalado.' + #13#10 +
+        'Este instalador actualizara a la version {#AppVersion}.' + #13#10 + #13#10 +
+        '¿Deseas actualizar?',
+        mbConfirmation, MB_YESNO) = IDYES;
+    end;
+  end
+  else
+    Result := True;  // Instalacion nueva, continuar sin preguntar
 end;
 
-// Inno Setup llama esta funcion para saber si hay que reiniciar al terminar
+// Pedir reinicio solo si VB-Cable fue recien instalado
 function NeedsRestart(): Boolean;
 begin
-  // Pedir reinicio solo si VB-Cable fue recien instalado (no existia antes)
   Result := WizardIsTaskSelected('vbcable') and (not VBCableYaExistia);
 end;

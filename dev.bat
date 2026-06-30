@@ -141,9 +141,9 @@ echo.
 echo  [Instalar dependencias Python]
 echo.
 echo  Eliminando PySide6-Addons si esta instalado (reduce tamano del EXE ~50%%)...
-pip uninstall PySide6 PySide6-Addons -y >nul 2>&1
+py -3.12 -m pip uninstall PySide6 PySide6-Addons -y >nul 2>&1
 echo  Instalando dependencias...
-pip install -r "%~dp0windows\requirements.txt"
+py -3.12 -m pip install -r "%~dp0windows\requirements.txt"
 if errorlevel 1 (
     echo.
     echo  ERROR: Fallo al instalar algunas dependencias.
@@ -174,12 +174,14 @@ exit /b 0
 :BUILD_EXE
 echo  Compilando EXE con PyInstaller...
 cd /d "%~dp0windows"
-pyinstaller -y --onedir --noconsole --name PhoneMic ^
+py -3.12 -m PyInstaller -y --onedir --noconsole --name PhoneMic ^
     --icon "%~dp0windows\phonemic.ico" ^
     --add-data "%~dp0windows\phonemic.ico;." ^
     --add-data "%~dp0windows\phonemic.png;." ^
     --collect-all sounddevice ^
     --collect-all soundfile ^
+    --collect-binaries PySide6 ^
+    --collect-binaries shiboken6 ^
     --hidden-import PySide6.QtWidgets ^
     --hidden-import PySide6.QtCore ^
     --hidden-import PySide6.QtGui ^
@@ -196,6 +198,16 @@ copy /Y "%~dp0windows\phonemic.png"  "%~dp0windows\dist\PhoneMic\" >nul
 copy /Y "%~dp0installer\adb_files\platform-tools\adb.exe"          "%~dp0windows\dist\PhoneMic\" >nul
 copy /Y "%~dp0installer\adb_files\platform-tools\AdbWinApi.dll"    "%~dp0windows\dist\PhoneMic\" >nul 2>nul
 copy /Y "%~dp0installer\adb_files\platform-tools\AdbWinUsbApi.dll" "%~dp0windows\dist\PhoneMic\" >nul 2>nul
+for /f "tokens=*" %%S in ('python -c "import shiboken6;print(shiboken6.__path__[0])" 2^>nul') do set "_SHIB=%%S"
+if defined _SHIB if exist "%_SHIB%\shiboken6.abi3.dll" (
+    if exist "%~dp0windows\dist\PhoneMic\_internal\PySide6" (
+        copy /Y "%_SHIB%\shiboken6.abi3.dll" "%~dp0windows\dist\PhoneMic\_internal\PySide6\" >nul
+        echo  shiboken6.abi3.dll copiada a _internal\PySide6\
+    ) else if exist "%~dp0windows\dist\PhoneMic\PySide6" (
+        copy /Y "%_SHIB%\shiboken6.abi3.dll" "%~dp0windows\dist\PhoneMic\PySide6\" >nul
+        echo  shiboken6.abi3.dll copiada a PySide6\
+    )
+)
 cd /d "%~dp0"
 exit /b 0
 

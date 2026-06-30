@@ -1241,7 +1241,7 @@ def _check_for_updates(root, show_cb):
             )
             with urllib.request.urlopen(req, timeout=5) as r:
                 data = json.loads(r.read())
-            latest   = data.get("tag_name", "").lstrip("v")
+            latest   = data.get("tag_name", "").lstrip("vV")
             html_url = data.get("html_url", "")
             if latest and latest != APP_VERSION:
                 root.after(0, lambda: show_cb(latest, html_url))

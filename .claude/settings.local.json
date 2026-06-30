@@ -94,7 +94,12 @@
       "Bash(cp \"../installer/adb_files/platform-tools/adb.exe\" dist/PhoneMic/)",
       "Bash(cp \"../installer/adb_files/platform-tools/AdbWinApi.dll\" dist/PhoneMic/)",
       "Bash(cp \"../installer/adb_files/platform-tools/AdbWinUsbApi.dll\" dist/PhoneMic/)",
-      "WebFetch(domain:jrsoftware.org)"
+      "WebFetch(domain:jrsoftware.org)",
+      "WebFetch(domain:api.github.com)",
+      "WebSearch",
+      "WebFetch(domain:brainsteam.co.uk)",
+      "WebFetch(domain:pyinstaller.org)",
+      "WebFetch(domain:doc.qt.io)"
     ]
   }
 }

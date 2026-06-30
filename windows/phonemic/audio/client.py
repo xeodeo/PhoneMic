@@ -88,25 +88,18 @@ class PhoneMicClient:
                 status_cb(msg)
 
         try:
-            # Check if daemon is already running (fast path)
-            sc("Verificando servidor ADB...")
-            r = subprocess.run(
-                [ADB, "devices"], capture_output=True, text=True,
-                timeout=3, creationflags=_CFLAGS,
+            # Always ensure the ADB daemon is running before listing devices.
+            # adb start-server is a no-op if the daemon is already up, and
+            # blocks until ready if it needs to start — avoids the 3-second
+            # race that caused silent failures on a fresh install.
+            sc("Iniciando servidor ADB...")
+            subprocess.run(
+                [ADB, "start-server"], capture_output=True,
+                timeout=15, creationflags=_CFLAGS,
             )
-            daemon_was_off = "daemon not running" in r.stdout or "daemon not running" in r.stderr
 
-            if daemon_was_off:
-                sc("Iniciando servidor ADB...")
-                subprocess.run(
-                    [ADB, "start-server"], capture_output=True,
-                    timeout=10, creationflags=_CFLAGS,
-                )
-                time.sleep(1.5)
-            else:
-                time.sleep(0.3)
-
-            auth, unauth, offline = self._adb_devices()
+            sc("Verificando dispositivo...")
+            auth, unauth, offline = self._adb_devices(timeout=8)
 
             # Device offline (was connected before, ADB daemon stale) → restart server
             if offline and not auth:

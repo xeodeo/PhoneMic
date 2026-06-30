@@ -21,6 +21,8 @@ from ..config import AppConfig, load_config, save_config
 from ..audio.client import PhoneMicClient
 from .widgets import MicSphere
 
+APP_VERSION = "1.3"
+
 # ── Palette ────────────────────────────────────────────────────────────────
 C_BG     = "#1a1b1e"
 C_CARD   = "#25262b"
@@ -232,9 +234,10 @@ class _NoScrollCombo(QComboBox):
 
 
 class _Bridge(QObject):
-    status         = Signal(str)
-    connect_result = Signal(bool, str)
-    disconnected   = Signal(bool)
+    status           = Signal(str)
+    connect_result   = Signal(bool, str)
+    disconnected     = Signal(bool)
+    update_available = Signal(str, str)  # version, url
 
 
 # ── Main App window ────────────────────────────────────────────────────────
@@ -258,6 +261,7 @@ class App(QMainWindow):
         self._bridge.status.connect(self._on_status)
         self._bridge.connect_result.connect(self._on_connect_result)
         self._bridge.disconnected.connect(self._on_disconnected)
+        self._bridge.update_available.connect(self._show_update_dialog)
 
         # ── Root layout ───────────────────────────────────────────────────
         central = QWidget()
@@ -273,6 +277,7 @@ class App(QMainWindow):
         self._load_config()
         self._setup_tray()
         self._center()
+        QTimer.singleShot(3000, self._check_for_updates)
 
     # ── Center window ─────────────────────────────────────────────────────
     def _center(self):
@@ -634,6 +639,56 @@ class App(QMainWindow):
         btn_ok.clicked.connect(dlg.accept)
         btn_ok.setCursor(Qt.CursorShape.PointingHandCursor)
         lay.addWidget(btn_ok)
+        dlg.exec()
+
+    # ── Update check ─────────────────────────────────────────────────────
+    def _check_for_updates(self):
+        import urllib.request, json
+        def _fetch():
+            try:
+                req = urllib.request.Request(
+                    "https://api.github.com/repos/xeodeo/PhoneMic/releases/latest",
+                    headers={"User-Agent": "PhoneMic"},
+                )
+                with urllib.request.urlopen(req, timeout=5) as r:
+                    data = json.loads(r.read())
+                latest   = data.get("tag_name", "").lstrip("vV")
+                html_url = data.get("html_url", "")
+                if latest and latest != APP_VERSION:
+                    self._bridge.update_available.emit(latest, html_url)
+            except Exception:
+                pass
+        threading.Thread(target=_fetch, daemon=True).start()
+
+    def _show_update_dialog(self, version: str = "", url: str = ""):
+        import webbrowser
+        from PySide6.QtWidgets import QDialog, QHBoxLayout
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Actualización disponible")
+        dlg.setStyleSheet(QSS + f"QDialog {{ background: {C_CARD}; }}")
+        dlg.setMinimumWidth(320)
+        lay = QVBoxLayout(dlg)
+        lay.setContentsMargins(24, 20, 24, 20)
+        lay.setSpacing(12)
+        lbl_t = QLabel("Nueva versión disponible")
+        lbl_t.setStyleSheet("font-size: 15px; font-weight: bold; color: white; background: transparent;")
+        lay.addWidget(lbl_t)
+        lbl_m = QLabel(f"Versión {version} ya está disponible.\nTu versión actual: {APP_VERSION}")
+        lbl_m.setWordWrap(True)
+        lbl_m.setStyleSheet(f"font-size: 12px; color: {C_MUTED}; background: transparent;")
+        lay.addWidget(lbl_m)
+        btn_row = QHBoxLayout()
+        btn_dl = QPushButton("Descargar")
+        btn_dl.setObjectName("btn_main")
+        btn_dl.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_dl.clicked.connect(lambda: (webbrowser.open(url), dlg.accept()))
+        btn_row.addWidget(btn_dl)
+        btn_no = QPushButton("Ahora no")
+        btn_no.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_no.setStyleSheet(f"color: {C_MUTED}; background: transparent; border: none; font-size: 13px;")
+        btn_no.clicked.connect(dlg.reject)
+        btn_row.addWidget(btn_no)
+        lay.addLayout(btn_row)
         dlg.exec()
 
     # ── Config ────────────────────────────────────────────────────────────

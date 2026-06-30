@@ -398,7 +398,7 @@ class MainActivity : AppCompatActivity() {
                 val body = conn.inputStream.bufferedReader().readText()
                 val tag     = Regex(""""tag_name"\s*:\s*"([^"]+)"""").find(body)
                                  ?.groupValues?.get(1) ?: return@Thread
-                val latest  = tag.trimStart('v')
+                val latest  = tag.trimStart('v', 'V')
                 val htmlUrl = Regex(""""html_url"\s*:\s*"([^"]+)"""").find(body)
                                  ?.groupValues?.get(1) ?: ""
                 if (latest != CURRENT_VERSION) {

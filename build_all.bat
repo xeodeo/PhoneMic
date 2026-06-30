@@ -22,12 +22,14 @@ echo.
 :: ── 2. EXE ────────────────────────────────────────
 echo [2/4] Compilando EXE Windows...
 cd /d "%~dp0windows"
-pyinstaller -y --onedir --noconsole --name PhoneMic ^
+py -3.12 -m PyInstaller -y --onedir --noconsole --name PhoneMic ^
     --icon "%~dp0windows\phonemic.ico" ^
     --add-data "%~dp0windows\phonemic.ico;." ^
     --add-data "%~dp0windows\phonemic.png;." ^
     --collect-all sounddevice ^
     --collect-all soundfile ^
+    --collect-binaries PySide6 ^
+    --collect-binaries shiboken6 ^
     --hidden-import PySide6.QtWidgets ^
     --hidden-import PySide6.QtCore ^
     --hidden-import PySide6.QtGui ^
@@ -45,6 +47,18 @@ copy /Y "%~dp0windows\phonemic.png"  "%~dp0windows\dist\PhoneMic\" >nul
 copy /Y "%~dp0installer\adb_files\platform-tools\adb.exe"          "%~dp0windows\dist\PhoneMic\" >nul
 copy /Y "%~dp0installer\adb_files\platform-tools\AdbWinApi.dll"    "%~dp0windows\dist\PhoneMic\" >nul 2>nul
 copy /Y "%~dp0installer\adb_files\platform-tools\AdbWinUsbApi.dll" "%~dp0windows\dist\PhoneMic\" >nul 2>nul
+
+:: Copiar shiboken6.abi3.dll al directorio PySide6 del dist (PyInstaller no lo encuentra solo)
+for /f "tokens=*" %%S in ('python -c "import shiboken6;print(shiboken6.__path__[0])" 2^>nul') do set "_SHIB=%%S"
+if defined _SHIB if exist "%_SHIB%\shiboken6.abi3.dll" (
+    if exist "%~dp0windows\dist\PhoneMic\_internal\PySide6" (
+        copy /Y "%_SHIB%\shiboken6.abi3.dll" "%~dp0windows\dist\PhoneMic\_internal\PySide6\" >nul
+        echo    shiboken6.abi3.dll copiada a _internal\PySide6\
+    ) else if exist "%~dp0windows\dist\PhoneMic\PySide6" (
+        copy /Y "%_SHIB%\shiboken6.abi3.dll" "%~dp0windows\dist\PhoneMic\PySide6\" >nul
+        echo    shiboken6.abi3.dll copiada a PySide6\
+    )
+)
 echo    Archivos copiados correctamente.
 echo.
 

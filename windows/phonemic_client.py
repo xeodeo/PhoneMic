@@ -39,7 +39,7 @@ PORT        = 7777
 SAMPLE_RATE = 16000
 CHANNELS    = 1
 CHUNK       = 4096
-APP_VERSION = "1.3"
+APP_VERSION = "1.4"
 
 # ── Discord color palette ────────────────────────────────────────────────────
 BG_DARK    = "#1e1f22"

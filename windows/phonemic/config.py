@@ -10,6 +10,7 @@ class AppConfig:
     high_quality: bool = False
     noise_gate: bool = False
     noise_gate_threshold: float = 0.02
+    update_dismissed: str = ""
 
 
 def config_path() -> str:

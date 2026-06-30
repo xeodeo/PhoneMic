@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -30,7 +31,8 @@ import java.net.URL
 
 class MainActivity : AppCompatActivity() {
 
-    private val CURRENT_VERSION = "1.3"
+    private val CURRENT_VERSION = "1.4"
+    private var updateShownThisSession = false
 
     private val COLOR_IDLE    = "#4f545c"
     private val COLOR_WAITING = "#f0a500"   // amarillo — servidor activo, sin cliente
@@ -387,7 +389,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkForUpdates() {
+        if (updateShownThisSession) return
         Thread {
+            // Delay so the permissions dialog resolves first — avoids WindowManager crash loop.
+            Thread.sleep(3000)
             try {
                 val conn = URL(
                     "https://api.github.com/repos/xeodeo/PhoneMic/releases/latest"
@@ -401,28 +406,48 @@ class MainActivity : AppCompatActivity() {
                 val latest  = tag.trimStart('v', 'V')
                 val htmlUrl = Regex(""""html_url"\s*:\s*"([^"]+)"""").find(body)
                                  ?.groupValues?.get(1) ?: ""
-                if (latest != CURRENT_VERSION) {
-                    runOnUiThread { showUpdateDialog(tag, htmlUrl) }
+                if (latest == CURRENT_VERSION) return@Thread
+
+                val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                if (prefs.getString("update_dismissed", "") == latest) return@Thread
+
+                runOnUiThread {
+                    if (!isFinishing && !isDestroyed) showUpdateDialog(tag, htmlUrl, latest)
                 }
             } catch (_: Exception) {}
         }.start()
     }
 
-    private fun showUpdateDialog(version: String, url: String) {
-        AlertDialog.Builder(this, R.style.DarkDialog)
-            .setTitle("Actualización disponible")
-            .setMessage("Nueva versión: $version\nVersión actual: $CURRENT_VERSION\n\nPuedes descargarla desde GitHub Releases.")
-            .setPositiveButton("Descargar") { _, _ ->
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    private fun showUpdateDialog(version: String, url: String, latest: String) {
+        updateShownThisSession = true
+        try {
+            val pad = (16 * resources.displayMetrics.density).toInt()
+            val chk = CheckBox(this).apply {
+                text = "No volver a mostrar para esta versión"
+                setTextColor(Color.parseColor("#909296"))
+                setPadding(pad * 2, pad, pad * 2, 0)
             }
-            .setNegativeButton("Ahora no", null)
-            .show()
+            val saveIfChecked = {
+                if (chk.isChecked) getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                    .edit().putString("update_dismissed", latest).apply()
+            }
+            AlertDialog.Builder(this, R.style.DarkDialog)
+                .setTitle("Actualización disponible")
+                .setMessage("Nueva versión: $version\nVersión actual: $CURRENT_VERSION\n\nPuedes descargarla desde GitHub Releases.")
+                .setView(chk)
+                .setPositiveButton("Descargar") { _, _ ->
+                    saveIfChecked()
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                }
+                .setNegativeButton("Ahora no") { _, _ -> saveIfChecked() }
+                .show()
+        } catch (_: Exception) {}
     }
 
     private fun showAboutDialog() {
         AlertDialog.Builder(this, R.style.DarkDialog)
             .setTitle("PhoneMic")
-            .setMessage("Versión 1.3\n\nUsa tu celular como micrófono vía USB (ADB) o WiFi (red local).\n\nPuerto: 7777\n\nDescargas y actualizaciones:\ngithub.com/xeodeo/PhoneMic/releases")
+            .setMessage("Versión $CURRENT_VERSION\n\nUsa tu celular como micrófono vía USB (ADB) o WiFi (red local).\n\nPuerto: 7777\n\nDescargas y actualizaciones:\ngithub.com/xeodeo/PhoneMic/releases")
             .setPositiveButton("OK", null)
             .show()
     }

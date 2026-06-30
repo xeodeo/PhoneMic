@@ -21,7 +21,7 @@ from ..config import AppConfig, load_config, save_config
 from ..audio.client import PhoneMicClient
 from .widgets import MicSphere
 
-APP_VERSION = "1.3"
+APP_VERSION = "1.4"
 
 # ── Palette ────────────────────────────────────────────────────────────────
 C_BG     = "#1a1b1e"
@@ -255,6 +255,7 @@ class App(QMainWindow):
         self._client          = PhoneMicClient()
         self._config          = load_config()
         self._connecting      = False
+        self._update_shown    = False  # show at most once per session
         self._timeout_timer: Optional[QTimer] = None
         self._tray: Optional[QSystemTrayIcon]  = None
 
@@ -644,6 +645,9 @@ class App(QMainWindow):
     # ── Update check ─────────────────────────────────────────────────────
     def _check_for_updates(self):
         import urllib.request, json
+        if self._update_shown:
+            return
+        dismissed = load_config().update_dismissed
         def _fetch():
             try:
                 req = urllib.request.Request(
@@ -654,7 +658,7 @@ class App(QMainWindow):
                     data = json.loads(r.read())
                 latest   = data.get("tag_name", "").lstrip("vV")
                 html_url = data.get("html_url", "")
-                if latest and latest != APP_VERSION:
+                if latest and latest != APP_VERSION and latest != dismissed:
                     self._bridge.update_available.emit(latest, html_url)
             except Exception:
                 pass
@@ -662,7 +666,8 @@ class App(QMainWindow):
 
     def _show_update_dialog(self, version: str = "", url: str = ""):
         import webbrowser
-        from PySide6.QtWidgets import QDialog, QHBoxLayout
+        from PySide6.QtWidgets import QDialog, QHBoxLayout, QCheckBox
+        self._update_shown = True
         dlg = QDialog(self)
         dlg.setWindowTitle("Actualización disponible")
         dlg.setStyleSheet(QSS + f"QDialog {{ background: {C_CARD}; }}")
@@ -677,6 +682,9 @@ class App(QMainWindow):
         lbl_m.setWordWrap(True)
         lbl_m.setStyleSheet(f"font-size: 12px; color: {C_MUTED}; background: transparent;")
         lay.addWidget(lbl_m)
+        chk = QCheckBox("No volver a mostrar para esta versión")
+        chk.setStyleSheet(f"color: {C_MUTED}; font-size: 11px; background: transparent;")
+        lay.addWidget(chk)
         btn_row = QHBoxLayout()
         btn_dl = QPushButton("Descargar")
         btn_dl.setObjectName("btn_main")
@@ -685,11 +693,15 @@ class App(QMainWindow):
         btn_row.addWidget(btn_dl)
         btn_no = QPushButton("Ahora no")
         btn_no.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_no.setStyleSheet(f"color: {C_MUTED}; background: transparent; border: none; font-size: 13px;")
+        btn_no.setStyleSheet(f"color: {C_RED}; background: transparent; border: none; font-size: 13px;")
         btn_no.clicked.connect(dlg.reject)
         btn_row.addWidget(btn_no)
         lay.addLayout(btn_row)
         dlg.exec()
+        if chk.isChecked():
+            cfg = load_config()
+            cfg.update_dismissed = version
+            save_config(cfg)
 
     # ── Config ────────────────────────────────────────────────────────────
     def _load_config(self):

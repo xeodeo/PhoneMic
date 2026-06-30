@@ -9,7 +9,7 @@
 ;   5. El instalador queda en installer\Output\PhoneMic_Setup.exe
 
 #define AppName      "PhoneMic"
-#define AppVersion   "1.3"
+#define AppVersion   "1.4"
 #define AppPublisher "PhoneMic"
 #define AppExe       "PhoneMic.exe"
 #define DistDir      "..\windows\dist\PhoneMic"
